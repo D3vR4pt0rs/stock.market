@@ -10,3 +10,8 @@ type Claims struct {
 type UpdateBalanceBody struct {
 	Amount float64 `json:"amount"`
 }
+
+type StocksBody struct {
+	Ticker string `json:"ticker"`
+	Amount int    `json:"amount"`
+}

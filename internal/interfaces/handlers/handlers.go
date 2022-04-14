@@ -27,7 +27,7 @@ func jwtHandler(next http.Handler) http.Handler {
 		})
 
 		if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-			logger.Info.Printf("%v %v", claims.UserId, claims.StandardClaims.ExpiresAt.Unix())
+			logger.Info.Printf("Get request from account with id %v. Token expire in %v", claims.UserId, claims.StandardClaims.ExpiresAt.Unix())
 			context.Set(r, "profile_id", claims.UserId)
 			next.ServeHTTP(w, r)
 		} else {
@@ -61,6 +61,30 @@ func getBalance(app storage.Controller) http.Handler {
 	})
 }
 
+func getBriefcase(app storage.Controller) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info.Println("Got new request for getting briefcase")
+		errorMessage := "Error getting briefcase"
+
+		profileId := context.Get(r, "profile_id").(int)
+		briefcase, err := app.GetBriefcase(profileId)
+		switch err {
+		case storage.AccountNotFoundError:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		case storage.InternalError:
+			http.Error(w, errorMessage, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		resp := make(map[string]interface{})
+		resp["data"] = briefcase
+		json.NewEncoder(w).Encode(resp)
+	})
+}
+
 func payBalance(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info.Println("Got new request for adding money to balance")
@@ -71,8 +95,8 @@ func payBalance(app storage.Controller) http.Handler {
 
 		err := json.NewDecoder(r.Body).Decode(&requestBody)
 		if err != nil {
-			logger.Error.Printf("Failed to decode credentials. Got %v", err)
-			http.Error(w, errorMessage, http.StatusBadRequest)
+			logger.Error.Printf("Failed to decode balance body. Got %v", err)
+			http.Error(w, "wrong structure", http.StatusBadRequest)
 			return
 		}
 
@@ -94,10 +118,77 @@ func payBalance(app storage.Controller) http.Handler {
 	})
 }
 
+func buyStocks(app storage.Controller) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info.Println("Got new request for buying stocks")
+
+		profileId := context.Get(r, "profile_id").(int)
+		var requestBody StocksBody
+
+		err := json.NewDecoder(r.Body).Decode(&requestBody)
+		if err != nil {
+			logger.Error.Printf("Failed to decode stocks. Got %v", err)
+			http.Error(w, "wrong structure", http.StatusBadRequest)
+			return
+		}
+
+		err = app.BuyStocks(profileId, requestBody.Ticker, requestBody.Amount)
+		switch err {
+		case storage.AccountNotFoundError, storage.NotEnoughMoneyError:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		case storage.InternalError:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		resp := make(map[string]interface{})
+		resp["status"] = "success"
+		json.NewEncoder(w).Encode(resp)
+	})
+}
+
+func sellStocks(app storage.Controller) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info.Println("Got new request for buying stocks")
+
+		profileId := context.Get(r, "profile_id").(int)
+		var requestBody StocksBody
+
+		err := json.NewDecoder(r.Body).Decode(&requestBody)
+		if err != nil {
+			logger.Error.Printf("Failed to decode stocks. Got %v", err)
+			http.Error(w, "wrong structure", http.StatusBadRequest)
+			return
+		}
+
+		err = app.SellStocks(profileId, requestBody.Ticker, requestBody.Amount)
+		switch err {
+		case storage.AccountNotFoundError, storage.NotEnoughStocksError:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		case storage.InternalError:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		resp := make(map[string]interface{})
+		resp["status"] = "success"
+		json.NewEncoder(w).Encode(resp)
+	})
+}
+
 func Make(r *mux.Router, app storage.Controller) {
 	apiUri := "/api"
 	r.Use(jwtHandler)
 	serviceRouter := r.PathPrefix(apiUri).Subrouter()
 	serviceRouter.Handle("/account/balance", getBalance(app)).Methods("GET")
 	serviceRouter.Handle("/account/balance", payBalance(app)).Methods("POST")
+	serviceRouter.Handle("/briefcase", getBriefcase(app)).Methods("GET")
+	serviceRouter.Handle("/briefcase/buy", buyStocks(app)).Methods("POST")
+	serviceRouter.Handle("/briefcase/sell", sellStocks(app)).Methods("POST")
 }

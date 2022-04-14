@@ -1,20 +1,24 @@
 package storage
 
-import "market/internal/entities"
+import (
+	"github.com/D3vR4pt0rs/logger"
+	"market/internal/entities"
+)
 
 type Controller interface {
 	GetBalance(profileId int) (float64, error)
 	UpdateBalance(profileId int, amount float64) (float64, error)
-	GetBriefcases(profileId int) ([]entities.Briefcase, error)
-	BuyBriefcase(profileId int, ticker string, amount int) error
-	SellBriefcase(profileId int, ticker string, amount int) error
+	GetBriefcase(profileId int) ([]entities.Briefcase, error)
+	BuyStocks(profileId int, ticker string, amount int) error
+	SellStocks(profileId int, ticker string, amount int) error
 }
 
 type Repository interface {
 	GetBalance(profileId int) (entities.Profile, error)
+	GetTickerPrice(ticker string) (float64, error)
 	UpdateBalance(profileId int, newBalance float64) error
-	GetBriefcases(profileId int) ([]entities.Briefcase, error)
-	GetBriefcaseByTicker(profileId int, ticker string) (entities.Briefcase, error)
+	GetBriefcase(profileId int) ([]entities.Briefcase, error)
+	GetStockInBriefcaseByTicker(profileId int, ticker string) (entities.Briefcase, error)
 	UpdateBriefcase(profileId int, ticker string, amount int) error
 }
 
@@ -51,29 +55,68 @@ func (app application) UpdateBalance(profileId int, amount float64) (float64, er
 	return profile.Balance, nil
 }
 
-func (app application) GetBriefcases(profileId int) ([]entities.Briefcase, error) {
-	briefcases, err := app.repo.GetBriefcases(profileId)
+func (app application) GetBriefcase(profileId int) ([]entities.Briefcase, error) {
+	briefcases, err := app.repo.GetBriefcase(profileId)
 	if err != nil {
 		return []entities.Briefcase{}, AccountNotFoundError
 	}
 	return briefcases, nil
 }
 
-func (app application) BuyBriefcase(profileId int, ticker string, amount int) error {
+func (app application) BuyStocks(profileId int, ticker string, amount int) error {
 	profile, err := app.repo.GetBalance(profileId)
 	if err != nil {
 		return AccountNotFoundError
 	}
 
-	tickerCost := 1000
+	tickerCost, err := app.repo.GetTickerPrice(ticker)
+	if err != nil {
+		return InternalError
+	}
 
-	price := float64(tickerCost * amount)
+	price := tickerCost * float64(amount)
+	logger.Info.Println("Price for this operation: ", price)
 
 	if profile.Balance < price {
 		return NotEnoughMoneyError
 	}
 
-	err = app.repo.UpdateBriefcase(profileId, ticker, amount)
+	logger.Info.Printf("Change balance on account")
 	err = app.repo.UpdateBalance(profileId, profile.Balance-price)
+	logger.Info.Printf("Add stocks to account")
+	err = app.repo.UpdateBriefcase(profileId, ticker, amount)
+
+	return nil
+}
+
+func (app application) SellStocks(profileId int, ticker string, amount int) error {
+	briefcase, err := app.repo.GetStockInBriefcaseByTicker(profileId, ticker)
+	if err != nil {
+		return InternalError
+	}
+
+	if briefcase.Amount < amount {
+		return NotEnoughStocksError
+	}
+
+	logger.Info.Printf("Move stocks from account")
+	tickerCost, err := app.repo.GetTickerPrice(ticker)
+	if err != nil {
+		return InternalError
+	}
+
+	price := tickerCost * float64(amount)
+
+	err = app.repo.UpdateBriefcase(profileId, ticker, briefcase.Amount-amount)
+
+	profile, err := app.repo.GetBalance(profileId)
+	if err != nil {
+		return InternalError
+	}
+
+	err = app.repo.UpdateBalance(profileId, profile.Balance+price)
+	if err != nil {
+		return InternalError
+	}
 	return nil
 }

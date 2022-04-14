@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"market/internal/infrastructure/exporter"
 	"market/internal/infrastructure/postgres"
 	"market/internal/interfaces/handlers"
 	"market/internal/interfaces/repository"
@@ -27,9 +28,11 @@ func main() {
 		Port:     os.Getenv("POSTGRES_PORT"),
 		Database: os.Getenv("POSTGRES_DATABASE"),
 	}
-	psClient := postgres.New(config)
 
-	repo := repository.New(psClient)
+	psClient := postgres.New(config)
+	expClient := exporter.New()
+
+	repo := repository.New(psClient, expClient)
 
 	application := storage.New(repo)
 

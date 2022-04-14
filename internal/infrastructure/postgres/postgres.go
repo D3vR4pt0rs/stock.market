@@ -68,7 +68,7 @@ func (postgres *dbClient) GetBriefcasesByAccountId(accountId int) ([]entities.Br
 	var briefcases []entities.Briefcase
 	for rows.Next() {
 		var briefcase Briefcase
-		err := rows.Scan(&briefcase)
+		err := rows.Scan(&briefcase.Id, &briefcase.Ticker, &briefcase.Amount)
 		if err != nil {
 			logger.Error.Println(err.Error())
 			return []entities.Briefcase{}, err
@@ -116,8 +116,8 @@ func (postgres *dbClient) DeleteBriefcase(id int) error {
 	return nil
 }
 
-func (postgres *dbClient) AddBriefcase(ticker string, amount int) error {
-	_, err := postgres.client.Exec("insert into briefcase (ticker,amount) values ($1,$2)", ticker, amount)
+func (postgres *dbClient) AddBriefcase(profileId int, ticker string, amount int) error {
+	_, err := postgres.client.Exec("insert into briefcase (account_id, ticker,amount) values ($1,$2,$3)", profileId, ticker, amount)
 	if err != nil {
 		logger.Error.Println(err.Error())
 		return err

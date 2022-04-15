@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.8.0
 	github.com/jackc/pgx v3.6.2+incompatible
+	github.com/rs/cors v1.8.2
 )
 
 require (

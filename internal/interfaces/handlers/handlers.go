@@ -18,7 +18,13 @@ func jwtHandler(next http.Handler) http.Handler {
 	verifyKey := os.Getenv("SECRET_KEY")
 	logger.Info.Printf(verifyKey)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Token not found", http.StatusBadRequest)
+		}
 		splitToken := strings.Split(authHeader, "Bearer ")
 		authToken := splitToken[1]
 
@@ -39,6 +45,8 @@ func jwtHandler(next http.Handler) http.Handler {
 
 func getBalance(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		logger.Info.Println("Got new request for getting balance")
 		errorMessage := "Error getting balance"
 
@@ -63,6 +71,8 @@ func getBalance(app storage.Controller) http.Handler {
 
 func getBriefcase(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		logger.Info.Println("Got new request for getting briefcase")
 		errorMessage := "Error getting briefcase"
 
@@ -87,6 +97,8 @@ func getBriefcase(app storage.Controller) http.Handler {
 
 func payBalance(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		logger.Info.Println("Got new request for adding money to balance")
 		errorMessage := "Error updating balance"
 
@@ -120,6 +132,9 @@ func payBalance(app storage.Controller) http.Handler {
 
 func buyStocks(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		logger.Info.Println("Got new request for buying stocks")
 
 		profileId := context.Get(r, "profile_id").(int)
@@ -152,6 +167,9 @@ func buyStocks(app storage.Controller) http.Handler {
 
 func sellStocks(app storage.Controller) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		logger.Info.Println("Got new request for buying stocks")
 
 		profileId := context.Get(r, "profile_id").(int)
